@@ -3,6 +3,7 @@ import Joi from "joi";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import pool from "../db.js";
+import auth from "../middlewares/auth.js";
 
 const router = express.Router();
 
@@ -27,7 +28,6 @@ router.post("/", async (req, res) => {
         expiresIn: "1h",
       });
       return res.status(200).json({ result: { id: id, email: email }, token });
-
     }
   }
 });
@@ -52,8 +52,12 @@ router.post("/signup", async (req, res) => {
       "jwtPrivateKey",
       { expiresIn: "1h" }
     );
-    return res.status(200).json({ result: { id: newUser.rows[0].id, emai: newUser.rows[0].email }, token });
-
+    return res
+      .status(200)
+      .json({
+        result: { id: newUser.rows[0].id, emai: newUser.rows[0].email },
+        token,
+      });
   } catch (err) {
     console.log(err.message);
   }
