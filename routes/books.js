@@ -8,9 +8,10 @@ router.get("/", async (req, res) => {
   try {
     const books = pool.query(`SELECT * FROM book`);
 
-    res.json((await books).rows);
+    res.status(200).json((await books).rows);
   } catch (error) {
     console.log(error);
+    res.status(500);
   }
 });
 
@@ -22,9 +23,9 @@ router.post("/", auth, async (req, res) => {
       [title, author, image]
     );
 
-    res.json(newBook);
+    res.status(200).json((await newBook).rows[0]);
   } catch (err) {
-    console.log(err.message);
+    res.status(500);
   }
 });
 
@@ -34,9 +35,9 @@ router.get("/:id", async (req, res) => {
       req.params.id,
     ]);
 
-    res.json((await book).rows[0]);
+    res.status(200).json((await book).rows[0]);
   } catch (error) {
-    console.log(error);
+    status(500);
   }
 });
 
@@ -48,9 +49,9 @@ router.put("/:id", auth, async (req, res) => {
       [title, author, image, req.params.id]
     );
 
-    res.json("Book updated!");
+    res.status(200).json("Book updated!");
   } catch (error) {
-    console.log(error);
+    res.status(500).json(error.message);
   }
 });
 
@@ -60,9 +61,9 @@ router.delete("/:id", auth, async (req, res) => {
       req.params.id,
     ]);
 
-    res.json("Book deleted!");
+    res.status(200).json("Book deleted!");
   } catch (error) {
-    console.log(error);
+    res.status(500).json(error.message);
   }
 });
 
