@@ -1,9 +1,9 @@
-import express from "express";
-import Joi from "joi";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import pool from "../db.js";
-import auth from "../middlewares/auth.js";
+const express = require("express");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const Joi = require("joi");
+const auth = require("../middlewares/auth.js");
+const { User } = require("../models");
 
 const router = express.Router();
 
@@ -12,23 +12,29 @@ router.post("/", async (req, res) => {
 
   if (error) return res.status(400).send(error.details[0].message);
 
-  const user = await pool.query(`SELECT * FROM "user" WHERE email = $1`, [
-    req.body.email,
-  ]);
+  try {
+    const user = await User.findOne({ where: { email: req.body.email } });
 
-  if (user.rowCount == 0) {
-    return res.status(400).send("Invalid Email");
-  } else {
-    let { id, email, password } = user.rows[0];
-    const validPassword = await bcrypt.compare(req.body.password, password);
-    if (!validPassword) {
-      return res.status(400).send("Invalid password");
+    if (user == undefined) {
+      return res.status(400).send("Invalid Email");
     } else {
-      const token = jwt.sign({ _id: id, email: email }, "jwtPrivateKey", {
-        expiresIn: "1h",
-      });
-      return res.status(200).json({ result: { id: id, email: email }, token });
+      const { id, email, password } = user;
+      // const validPassword = await bcrypt.compare(req.body.password, password);
+
+      if (/* !validPassword */ password !== req.body.password) {
+        return res.status(500).send("Invalid password");
+      } else {
+        const token = jwt.sign({ _id: id, email: email }, "jwtPrivateKey", {
+          expiresIn: "1h",
+        });
+
+        return res
+          .status(200)
+          .json({ result: { id: id, email: email }, token });
+      }
     }
+  } catch (error) {
+    return res.status(400).send(error);
   }
 });
 
@@ -42,22 +48,24 @@ router.post("/signup", async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hash_password = await bcrypt.hash(password, salt);
 
-    const newUser = await pool.query(
-      `INSERT INTO "user" (first_name, last_name, email, password, image) VALUES($1, $2, $3, $4, $5) RETURNING *`,
-      [first_name, last_name, email, hash_password, image]
-    );
+    const newUser = await User.create({
+      first_name,
+      last_name,
+      email,
+      password,
+      image,
+    });
 
     const token = jwt.sign(
-      { _id: newUser.rows[0].id, email: newUser.rows[0].email },
+      { _id: newUser.id, email: newUser.email },
       "jwtPrivateKey",
       { expiresIn: "1h" }
     );
-    return res
-      .status(200)
-      .json({
-        result: { id: newUser.rows[0].id, emai: newUser.rows[0].email },
-        token,
-      });
+
+    return res.status(200).json({
+      result: { id: newUser.id, emai: newUser.email },
+      token,
+    });
   } catch (err) {
     console.log(err.message);
   }
@@ -84,4 +92,4 @@ function signupValidate(req) {
   return schema.validate(req);
 }
 
-export default router;
+module.exports = router;

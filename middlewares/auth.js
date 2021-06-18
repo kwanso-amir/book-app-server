@@ -1,9 +1,8 @@
-import jwt from "jsonwebtoken";
+const jwt = require("jsonwebtoken");
 
 function auth(req, res, next) {
   const token = req.headers.authorization.split(" ")[1];
   try {
-
     if (!token) return res.status(401).send("access denied, No toekn provided");
 
     next();
@@ -12,4 +11,4 @@ function auth(req, res, next) {
   }
 }
 
-export default auth;
+module.exports = auth;

@@ -1,14 +1,24 @@
-import express from "express";
-import pool from "../db.js";
-import auth from "../middlewares/auth.js";
+const express = require("express");
+const Joi = require("joi");
+const auth = require("../middlewares/auth.js");
+const { Book, User, Comment, Reply } = require("../models");
 
 const router = express.Router();
 
 router.get("/", async (req, res) => {
   try {
-    const books = pool.query(`SELECT * FROM book`);
+    const books = await Book.findAll({
+      attributes: ["id", "title", "author", "image", "createdAt"],
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "first_name", "last_name"],
+        },
+      ],
+    });
 
-    res.status(200).json((await books).rows);
+    res.status(200).json(books);
   } catch (error) {
     console.log(error);
     res.status(500);
@@ -16,14 +26,12 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", auth, async (req, res) => {
-  const { title, author, image } = req.body;
-  try {
-    const newBook = await pool.query(
-      `INSERT INTO book (title, author, image) VALUES($1, $2, $3) RETURNING *`,
-      [title, author, image]
-    );
+  const { title, author, image, user_id } = req.body;
 
-    res.status(200).json((await newBook).rows[0]);
+  try {
+    const newBook = await Book.create({ title, author, image, user_id });
+
+    res.status(200).json(newBook);
   } catch (err) {
     res.status(500);
   }
@@ -31,22 +39,59 @@ router.post("/", auth, async (req, res) => {
 
 router.get("/:id", async (req, res) => {
   try {
-    const book = await pool.query(`SELECT * FROM book WHERE book_id = $1`, [
-      req.params.id,
-    ]);
+    const book = await Book.findOne({
+      where: {
+        id: req.params.id,
+      },
+      attributes: ["id", "title", "author", "image"],
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["id", "first_name", "last_name"],
+        },
+        {
+          model: Comment,
+          as: "comments",
+          attributes: ["id", "body", "createdAt"],
+          include: [
+            {
+              model: User,
+              as: "user",
+              attributes: ["first_name", "last_name"],
+            },
+            {
+              model: Reply,
+              as: "replies",
+              attributes: ["id", "body", "createdAt"],
+              include: [
+                {
+                  model: User,
+                  as: "user",
+                  attributes: ["first_name", "last_name"],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
 
-    res.status(200).json((await book).rows[0]);
+    res.status(200).json(book);
   } catch (error) {
-    status(500);
+    res.status(500);
   }
 });
 
 router.put("/:id", auth, async (req, res) => {
   try {
     const { title, author, image } = req.body;
-    const updateBook = await pool.query(
-      `UPDATE book SET title = $1, author = $2, image = $3 WHERE book_id = $4`,
-      [title, author, image, req.params.id]
+
+    const updatedBook = await Book.update(
+      { title, author, image },
+      {
+        where: { id: req.params.id },
+      }
     );
 
     res.status(200).json("Book updated!");
@@ -57,9 +102,7 @@ router.put("/:id", auth, async (req, res) => {
 
 router.delete("/:id", auth, async (req, res) => {
   try {
-    const book = await pool.query(`DELETE FROM book WHERE book_id = $1`, [
-      req.params.id,
-    ]);
+    const book = await Book.destroy({ where: { id: req.params.id } });
 
     res.status(200).json("Book deleted!");
   } catch (error) {
@@ -67,4 +110,4 @@ router.delete("/:id", auth, async (req, res) => {
   }
 });
 
-export default router;
+module.exports = router;

@@ -1,50 +1,31 @@
-import express from "express";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import Joi from "joi";
-import pool from "../db.js";
-import auth from "../middlewares/auth.js";
+const express = require("express");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const Joi = require("joi");
+const auth = require("../middlewares/auth.js");
+const { User } = require("../models");
+
 const router = express.Router();
 
-router.get("/me", auth, async (req, res) => {
-  try {
-    const token = req.headers.authorization.split(" ")[1];
-    let userData = jwt.verify(token, "jwtPrivateKey");
-
-    const user = await pool.query(`SELECT * FROM "user" WHERE id = $1`, [
-      userData._id,
-    ]);
-
-    res.json((await user).rows[0]);
-  } catch (error) {
-    console.log(error);
-  }
-});
-
-router.get("/", async (req, res) => {
-  try {
-    const users = pool.query(`SELECT * FROM "user"`);
-
-    res.json((await users).rows);
-  } catch (error) {
-    console.log(error);
-  }
-});
-
-router.post("/", auth, async (req, res) => {
+router.post("/", async (req, res) => {
   const { first_name, last_name, email, password, image } = req.body;
   const { error } = validate(req.body);
   if (!error) {
     try {
       const salt = await bcrypt.genSalt(10);
       const hash_password = await bcrypt.hash(password, salt);
-      const newUser = await pool.query(
-        `INSERT INTO "user" (first_name, last_name, email, password, image) VALUES($1, $2, $3, $4, $5) RETURNING *`,
-        [first_name, last_name, email, hash_password, image]
-      );
 
-      res.status(200).json((await newUser).rows[0]);
+      const newUser = await User.create({
+        first_name,
+        last_name,
+        email,
+        password,
+        image,
+      });
+
+      res.status(200).json(newUser);
     } catch (err) {
+      console.log(err);
       res.status(500);
     }
   } else {
@@ -52,15 +33,45 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/me", async (req, res) => {
   try {
-    const user = await pool.query(`SELECT * FROM "user" WHERE id = $1`, [
-      req.params.id,
-    ]);
+    const token = req.headers.authorization.split(" ")[1];
+    let userData = jwt.verify(token, "jwtPrivateKey");
 
-    res.json((await user).rows[0]);
+    const user = await User.findOne({ where: { id: userData._id } });
+
+    res.status(200).json(user);
   } catch (error) {
     console.log(error);
+    res.status(500);
+  }
+});
+
+router.get("/", async (req, res) => {
+  try {
+    const users = await User.findAll({
+      attributes: ["id", "first_name", "last_name", "email"],
+    });
+
+    res.json(users).status(200);
+  } catch (error) {
+    console.log(error);
+    res.status(500);
+  }
+});
+
+router.get("/:id", async (req, res) => {
+  try {
+    const user = await User.findOne({
+      where: {
+        id: req.params.id,
+      },
+    });
+
+    res.json(user);
+  } catch (error) {
+    console.log(error);
+    res.status(500);
   }
 });
 
@@ -70,11 +81,13 @@ router.put("/:id", auth, async (req, res) => {
   if (!error) {
     try {
       const { first_name, last_name, email, image } = req.body;
-      const updateUser = await pool.query(
-        `UPDATE "user" SET first_name = $1, last_name = $2, email = $3, image = $4 WHERE id = $5`,
-        [first_name, last_name, email, image, req.params.id]
-      );
 
+      const updatedUser = User.update(
+        { first_name, last_name, email, image },
+        {
+          where: { id: req.params.id },
+        }
+      );
       res.status(200);
     } catch (error) {
       res.status(500).json(error);
@@ -86,11 +99,12 @@ router.put("/:id", auth, async (req, res) => {
 
 router.delete("/:id", auth, async (req, res) => {
   try {
-    const user = await pool.query(`DELETE FROM "user" WHERE id = $1`, [
-      req.params.id,
-    ]);
-
-    res.json("User deleted!");
+    const user = User.destroy({
+      where: {
+        id: req.params.id,
+      },
+    });
+    res.status(200).json("User deleted!");
   } catch (error) {
     console.log(error);
   }
@@ -108,4 +122,4 @@ function validate(req) {
   return schema.validate(req);
 }
 
-export default router;
+module.exports = router;

@@ -1,10 +1,12 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import pool from "./db.js";
-import users from "./routes/users.js";
-import books from "./routes/books.js";
-import auth from "./routes/auth.js";
+const express = require("express");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const users = require("./routes/users.js");
+const { sequelize } = require("./models");
+const auth = require("./routes/auth.js");
+const books = require("./routes/books.js");
+const comments = require("./routes/comments.js");
+const replies = require("./routes/replies.js");
 
 // APP Config
 const app = express();
@@ -16,9 +18,18 @@ dotenv.config();
 
 // API Routes
 app.use("/users", users);
-app.use("/books", books)
+app.use("/books", books);
 app.use("/auth", auth);
-
+app.use("/comments", comments);
+app.use("/replies", replies);
 
 // Listen
-app.listen(5000, () => console.log("listening at 5000..."));
+
+try {
+  app.listen(5000, async () => {
+    sequelize.authenticate();
+    console.log("DB CONNECTED and listening on localhost:5000");
+  });
+} catch (error) {
+  console.error("Unable to connect to the database:", error);
+}
