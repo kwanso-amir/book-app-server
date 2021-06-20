@@ -9,7 +9,6 @@ const router = express.Router();
 
 router.post("/", async (req, res) => {
   const { error } = validate(req.body);
-
   if (error) return res.status(400).send(error.details[0].message);
 
   try {
@@ -25,7 +24,7 @@ router.post("/", async (req, res) => {
         return res.status(500).send("Invalid password");
       } else {
         const token = jwt.sign({ _id: id, email: email }, "jwtPrivateKey", {
-          expiresIn: "1h",
+          expiresIn: "24h",
         });
 
         return res
@@ -59,7 +58,7 @@ router.post("/signup", async (req, res) => {
     const token = jwt.sign(
       { _id: newUser.id, email: newUser.email },
       "jwtPrivateKey",
-      { expiresIn: "1h" }
+      { expiresIn: "24h" }
     );
 
     return res.status(200).json({
