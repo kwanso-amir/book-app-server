@@ -24,11 +24,11 @@ app.use("/comments", comments);
 app.use("/replies", replies);
 
 // Listen
-
+const port = process.env.PORT || 5000
 try {
-  app.listen(5000, async () => {
+  app.listen(port, async () => {
     sequelize.authenticate();
-    console.log("DB CONNECTED and listening on localhost:5000");
+    console.log(`DB CONNECTED and listening on port ${port}`);
   });
 } catch (error) {
   console.error("Unable to connect to the database:", error);
